@@ -1,121 +1,130 @@
+#!/usr/bin/env python3
 import tkinter as tk
 from tkinter import messagebox
 import subprocess
 import time
+import os
 
-def execute_command(command):
-    try:
-        resultado = subprocess.run(command, shell=True, capture_output=True, text=True)
-        if resultado.returncode == 0:
-            return resultado.stdout.strip()
-        else:
-            return f"Error: {resultado.stderr.strip()}"
-    except Exception as e:
-        return f"Error: {str(e)}"
+class AnchoaDE:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Anchoa Desktop Shell")
+        
+        self.root.attributes('-fullscreen', True)
+        self.root.attributes('-topmost', True)
+        self.root.configure(bg="#1e1e2e")
 
-def update_system_stats():
-    kernel = execute_command("uname -r")
-    uptime = execute_command("uptime -p 2>/dev/null || echo 'Uptime utility missing'")
-    memory = execute_command("free -h | awk '/^Mem:/ {print $3 \" / \" $2}'")
-    
-    stats_text = f"OS: Anchoa Linux v1.1\nKernel: {kernel}\n{uptime}\nRAM Usage: {memory}"
-    lbl_info.config(text=stats_text)
-    root.after(5000, update_system_stats)
+        self.bg_panel = "#11111b"
+        self.accent_color = "#00f5d4"
+        self.text_color = "#cdd6f4"
+        self.alert_color = "#ff6b6b"
 
-def open_terminal():
-    subprocess.Popen(["xterm"])
+        self.create_top_panel()
+        self.create_main_content()
+        self.create_bottom_dock()
+        
+        self.update_clock()
+        self.update_stats()
 
-def install_package():
-    package = entry_package.get().strip()
-    if not package:
-        messagebox.showwarning("Warning", "Please enter a package name.")
-        return
-    
-    lbl_status.config(text=f"Enpacking {package}... Please wait...", fg="yellow")
-    root.update_idletasks()
-    
-    command = f"/usr/local/bin/latilla install {package}"
-    result = execute_command(command)
-    
-    lbl_status.config(text="Operation completed", fg="white")
-    messagebox.showinfo("Latilla Package Manager", result)
-    entry_package.delete(0, tk.END)
+    def create_top_panel(self):
+        self.top_panel = tk.Frame(self.root, bg=self.bg_panel, height=40, bd=0)
+        self.top_panel.pack(fill="x", side="top")
+        self.top_panel.pack_propagate(False)
 
-def poweroff_system():
-    if messagebox.askyesno("Power Off", "Shut down Anchoa OS?"):
-        execute_command("poweroff")
+        self.logo_label = tk.Label(self.top_panel, text=" 🐟 ANCHOA DE v1.0", font=("Courier", 12, "bold"), bg=self.bg_panel, fg=self.accent_color)
+        self.logo_label.pack(side="left", padx=15)
 
-def reboot_system():
-    if messagebox.askyesno("Reboot", "Restart Anchoa OS?"):
-        execute_command("reboot")
+        self.ram_label = tk.Label(self.top_panel, text="RAM: Oculto MB", font=("Courier", 11), bg=self.bg_panel, fg=self.text_color)
+        self.ram_label.pack(side="left", padx=20)
 
-root = tk.Tk()
-root.title("Anchoa Desktop Shell")
+        self.clock_label = tk.Label(self.top_panel, text="", font=("Courier", 12, "bold"), bg=self.bg_panel, fg=self.accent_color)
+        self.clock_label.pack(side="right", padx=15)
 
-screen_width = root.winfo_screenwidth()
-screen_height = root.winfo_screenheight()
-root.geometry(f"{screen_width}x{screen_height}+0+0")
-root.configure(bg="#008080")
+    def create_main_content(self):
+        self.center_frame = tk.Frame(self.root, bg="#1e1e2e")
+        self.center_frame.place(relx=0.5, rely=0.45, anchor="center")
 
-root.overrideredirect(True)
+        title_box = tk.Label(self.center_frame, text="─── LATILLA PACKAGE MANAGER ───", font=("Courier", 14, "bold"), bg="#1e1e2e", fg=self.accent_color)
+        title_box.pack(pady=10)
 
-lbl_banner = tk.Label(
-    root, 
-    text="🐟 ANCHOA OPERATING SYSTEM 🐟", 
-    fg="#00FFFF", 
-    bg="#008080", 
-    font=("Courier", 26, "bold")
-)
-lbl_banner.pack(pady=40)
+        subtitle = tk.Label(self.center_frame, text="Enter a package name to enpack from Debian mirrors:", font=("Courier", 10), bg="#1e1e2e", fg=self.text_color)
+        subtitle.pack(pady=5)
 
-frame_main = tk.Frame(root, bg="#008080")
-frame_main.pack(expand=True)
+        self.package_entry = tk.Entry(self.center_frame, font=("Courier", 14), bg=self.bg_panel, fg=self.accent_color, insertbackground=self.accent_color, bd=2, relief="flat", width=30, justify="center")
+        self.package_entry.pack(pady=10, ipady=5)
+        self.package_entry.focus_set()
 
-frame_info = tk.LabelFrame(frame_main, text=" System Status ", fg="white", bg="#008080", font=("Arial", 11, "bold"), bd=3)
-frame_info.pack(padx=20, pady=15, fill="x")
+        btn_install = tk.Button(self.center_frame, text="[ ENPACK APPLICATION ]", font=("Courier", 11, "bold"), bg=self.bg_panel, fg=self.accent_color, activebackground=self.accent_color, activeforeground=self.bg_panel, bd=1, relief="solid", command=self.run_latilla)
+        btn_install.pack(pady=10, ipadx=10, ipady=5)
 
-lbl_info = tk.Label(frame_info, text="Loading hardware metrics...", fg="#00FFFF", bg="#008080", font=("Courier", 12), justify="left")
-lbl_info.pack(padx=20, pady=20)
+    def create_bottom_dock(self):
+        self.dock = tk.Frame(self.root, bg=self.bg_panel, height=50, bd=1, relief="solid", highlightbackground=self.accent_color)
+        self.dock.pack(side="bottom", pady=20, ipadx=10)
 
-frame_software = tk.LabelFrame(frame_main, text=" Latilla Package Manager (GUI) ", fg="white", bg="#008080", font=("Arial", 11, "bold"), bd=3)
-frame_software.pack(padx=20, pady=15, fill="x")
+        def quick_btn(text, cmd, color):
+            return tk.Button(self.dock, text=text, font=("Courier", 10, "bold"), bg=self.bg_panel, fg=color, activebackground=color, activeforeground=self.bg_panel, bd=0, cursor="hand2", command=cmd)
 
-lbl_instalar = tk.Label(frame_software, text="Enter the package name to build:", fg="white", bg="#008080", font=("Arial", 10))
-lbl_instalar.pack(pady=10)
+        quick_btn(" >_ Terminal ", self.open_terminal, self.accent_color).pack(side="left", padx=10, pady=5)
+        quick_btn(" 󰍉 Top ", lambda: self.open_app_in_terminal("htop"), self.text_color).pack(side="left", padx=10, pady=5)
+        
+        tk.Label(self.dock, text="|", bg=self.bg_panel, fg="#45475a").pack(side="left", padx=5)
 
-entry_package = tk.Entry(frame_software, font=("Arial", 12), width=30, bd=3)
-entry_package.pack(pady=5)
+        quick_btn(" 󰐥 Reboot ", self.sys_reboot, self.text_color).pack(side="left", padx=10, pady=5)
+        quick_btn(" 󰐥 Poweroff ", self.sys_poweroff, self.alert_color).pack(side="left", padx=10, pady=5)
 
-btn_install = tk.Button(frame_software, text="📦 Enpack Application", command=install_package, bg="#4CAF50", fg="white", font=("Arial", 11, "bold"), padx=10, pady=5)
-btn_install.pack(pady=10)
+    def run_latilla(self):
+        package = self.package_entry.get().strip()
+        if not package:
+            messagebox.showwarning("Warning", "Please type a package name first.")
+            return
 
-lbl_status = tk.Label(frame_software, text="", fg="white", bg="#008080", font=("Arial", 10, "italic"))
-lbl_status.pack()
+        xterm_command = [
+            "xterm", 
+            "-title", f"Latilla Installer: {package}",
+            "-bg", self.bg_panel, "-fg", self.accent_color,
+            "-fa", "Monospace", "-fs", "11",
+            "-e", "bash", "-c", f"/usr/local/bin/latilla install {package}; echo -e '\\n─── Process finished. Press ENTER to close ───'; read"
+        ]
 
-frame_shortcuts = tk.LabelFrame(frame_main, text=" System Tools ", fg="white", bg="#008080", font=("Arial", 11, "bold"), bd=3)
-frame_shortcuts.pack(padx=20, pady=15, fill="x")
+        try:
+            subprocess.Popen(xterm_command)
+            self.package_entry.delete(0, tk.END)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to launch installer:\n{e}")
 
-btn_term = tk.Button(frame_shortcuts, text="💻 Open Terminal (Xterm)", command=open_terminal, bg="#333333", fg="white", font=("Arial", 10, "bold"), padx=10, pady=5)
-btn_term.pack(pady=15)
+    def open_terminal(self):
+        subprocess.Popen(["xterm", "-bg", self.bg_panel, "-fg", self.accent_color, "-fa", "Monospace", "-fs", "11"])
 
-frame_bar = tk.Frame(root, bg="#333333", height=40)
-frame_bar.pack(side="bottom", fill="x")
+    def open_app_in_terminal(self, app_name):
+        subprocess.Popen(["xterm", "-bg", self.bg_panel, "-fg", self.text_color, "-fa", "Monospace", "-fs", "11", "-e", app_name])
 
-btn_reboot = tk.Button(frame_bar, text="🔄 Reboot", command=reboot_system, bg="#ff9800", fg="black", font=("Arial", 10, "bold"), bd=0, padx=15)
-btn_reboot.pack(side="left", fill="y")
+    def update_clock(self):
+        current_time = time.strftime(" %Y-%m-%d  %H:%M:%S ")
+        self.clock_label.config(text=current_time)
+        self.root.after(1000, self.update_clock)
 
-btn_poweroff = tk.Button(frame_bar, text="🛑 Power Off", command=poweroff_system, bg="#f44336", fg="white", font=("Arial", 10, "bold"), bd=0, padx=15)
-btn_poweroff.pack(side="left", fill="y")
+    def update_stats(self):
+        try:
+            with open('/proc/meminfo', 'r') as f:
+                lines = f.readlines()
+            mem_total = int(lines[0].split()[1])
+            mem_free = int(lines[1].split()[1])
+            mem_cached = int(lines[4].split()[1])
+            mem_used = (mem_total - mem_free - mem_cached) // 1024
+            self.ram_label.config(text=f"RAM: {mem_used} MB")
+        except:
+            self.ram_label.config(text="RAM: Error")
+        self.root.after(5000, self.update_stats)
 
-def update_clock():
-    current_time = time.strftime("%H:%M:%S")
-    lbl_clock.config(text=current_time)
-    lbl_clock.after(1000, update_clock)
+    def sys_reboot(self):
+        if messagebox.askyesno("Reboot", "Are you sure you want to reboot the system?"):
+            os.system("sudo reboot")
 
-lbl_clock = tk.Label(frame_bar, text="", fg="white", bg="#333333", font=("Courier", 12, "bold"), padx=20)
-lbl_clock.pack(side="right", fill="y")
+    def sys_poweroff(self):
+        if messagebox.askyesno("Poweroff", "Are you sure you want to power off?"):
+            os.system("sudo poweroff")
 
-update_system_stats()
-update_clock()
-
-root.mainloop()
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = AnchoaDE(root)
+    root.mainloop()
