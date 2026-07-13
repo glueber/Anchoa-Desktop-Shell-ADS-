@@ -10,9 +10,18 @@ class AnchoaDE:
         self.root = root
         self.root.title("Anchoa Desktop Shell")
         
-        self.root.attributes('-fullscreen', True)
         self.root.attributes('-topmost', True)
         self.root.configure(bg="#1e1e2e")
+        self.root.overrideredirect(True)
+        
+        width = self.root.winfo_screenwidth()
+        height = self.root.winfo_screenheight()
+        
+        if width <= 1024:
+            width = 1280
+            height = 720
+            
+        self.root.geometry(f"{width}x{height}+0+0")
 
         self.bg_panel = "#11111b"
         self.accent_color = "#00f5d4"
